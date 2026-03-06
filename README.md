@@ -40,21 +40,48 @@ Unzip genome and annotations.
 
 Build index:
 ```
-hisat2-build GCF_000146045.2_R64_genomic.fna ../index/GCF_000146045.2_R64_genomic.gff
+hisat2-build raw_reads/GCF_000146045.2_R64_genomic.fna index/yeast
 ```
 
-Then run algorithm in single-end mode:
+Then run algorithm in single-end mode and make bams:
 ```
-hisat2 -p 8 -x ../index/ -U SRRXXXXXX.fastq | samtools sort > SRRXXXXXX.bam
+hisat2 -p 8 -x index/yeast -U SRRXXXXXX.fastq -S SRRXXXXXX.sam
+samtools sort -@ 8 -o SRRXXXXXX.bam SRRXXXXXX.sam
 ```
 
 ### Quantify with featureCounts
 
+Convert .gff to .gtf before running featureCounts:
 
+```
+gffread raw_reads/GCF_000146045.2_R64_genomic.gff -T -o annotation.gtf
+
+```
+
+Run featureCounts (not all rows include gene_id (2 of 19716, so we drop them)) and simplify output then:
+```
+grep "gene_id" annotation.gtf > clean_anno.gtf
+featureCounts -g gene_id -a clean_anno.gtf -o fcounts.txt SRR941816.bam SRR941817.bam SRR941818.bam SRR941819.bam
+```
+`fcounts.txt.summary` is placed in `results` folder.
+We don’t need all columns from featureCounts output file for further analysis, so let’s simplify it.
+
+```
+cat fcounts.txt | sed '1!s/^gene-//' | cut -f1,7-10 > results/simple_fcounts.txt
+```
+Output:
+```
+# Program:featureCounts v2.1.1; Command:"featureCounts" "-g" "gene_id" "-a" "clean_anno.gtf" "-o" "fcounts.txt" "SRR941816.bam" "SRR941817.bam" "SRR941818.bam" "SRR941819.bam" 
+Geneid	SRR941816.bam	SRR941817.bam	SRR941818.bam	SRR941819.bam
+YAL068C	14	16	2	6
+YAL067W-A	0	0	0	0
+YAL067C	116	69	5	11
+...
+```
 ## Differential expression analysis
 
 ### R environment
-Install [tximport](https://pachterlab.github.io/sleuth/about) with bioconductor to support kallisto output, then install DESeq2 for the difseq itself.
+Install [tximport](https://pachterlab.github.io/sleuth/about) to support kallisto output, then install [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) for the difseq itself.
 
 
 
@@ -62,7 +89,15 @@ Install [tximport](https://pachterlab.github.io/sleuth/about) with bioconductor 
 
 ### Visualisation
 
-## Discussion
+## Interpretation and discussion
+
+Extract top-50 instances from `result.txt` file:
+
+```
+head -n 50 result.txt | cut -f 1 | cut -d "-" -f 2 > genes.txt
+```
+
+
 
 ### Upregulated genes
 
