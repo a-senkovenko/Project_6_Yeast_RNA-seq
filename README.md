@@ -64,6 +64,7 @@ grep "gene_id" annotation.gtf > clean_anno.gtf
 featureCounts -g gene_id -a clean_anno.gtf -o fcounts.txt SRR941816.bam SRR941817.bam SRR941818.bam SRR941819.bam
 ```
 `fcounts.txt.summary` is placed in `results` folder.
+
 We don’t need all columns from featureCounts output file for further analysis, so let’s simplify it.
 
 ```
@@ -80,25 +81,55 @@ YAL067C	116	69	5	11
 ```
 ## Differential expression analysis
 
-### R environment
-Install [tximport](https://pachterlab.github.io/sleuth/about) to support kallisto output, then install [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) for the difseq itself.
+Install R dependencies for [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html):
 
+```
+install.packages("BiocManager")
+BiocManager::install("DESeq2")
+```
 
+Use the following R scripts:
 
-### Gene search
+* `make_dataset.R`: This file includes installation of DESeq2 package and makes dataframe to work with.
 
-### Visualisation
+* `deseq.R`: This file transforms our data to DESeqDataSet, runs analysis, writes sorted results to the file `result.txt`. Also prepares normalized count matrix for visualisation step.
+
+* `visualisation.R`: Builds heatmap via Z-score for each gene. Saves in pdf format.
+
+![image](results/heatmap.png)
+
 
 ## Interpretation and discussion
 
-Extract top-50 instances from `result.txt` file:
+Extract top-50 instances from `result.txt` file where they are sorted by adjusted p-value:
 
 ```
-head -n 50 result.txt | cut -f 1 | cut -d "-" -f 2 > genes.txt
+head -n 52 result.txt | cut -f 1 | cut -d "-" -f 2 > genes.txt
 ```
+Use https://www.yeastgenome.org/goSlimMapper and match Gene Ontology (GO) terms tto the chosen genes.
 
+Results are stored in GO.html table in `results` folder.
+There are 35 GO terms in total, indicating changes in main processes within yeast cells during fermentation process.
 
+Pick genes with increased and decreased expression and describe them.
 
 ### Upregulated genes
 
+One of the most obvious differences is assaociated with transmembrane transport `GO:0055085`. 
+The fermenatation is tied to rearrangements of metabolic pathways, therefore, cells require adaptation of transmembrane delivery for the changed metabolites and protection from increasing ethanol concentration outside. 
+
+It involves the following genes:
+
+* [YDR536W](https://www.yeastgenome.org/locus/YDR536W): 7.88 log2-change, encodes a plasma membrane-bound glycerol/$H^+$ symporter responsible for glycerol uptake, induced when cells are subjected to osmotic shock.
+* [YHR094C](https://www.yeastgenome.org/locus/YHR094C): 7.88 log2-change, low-affinity glucose transporter, is induced in presence of glucose and repressed in its deficiency.
+* [YNL065W](https://www.yeastgenome.org/locus/YNL065W): 7.79 log2-change, amino acid plasma membrane transporter, plays role in decreasing cytosole accumulation of amino acids, to help cells surviving excess amino acid toxicity. 
+* [YKL120W](https:/mot/www.yeastgenome.org/locus/YKL120W): 7.27 log2-change, mitochondrial inner membrane transporter, mainly transports oxaloacetate into the mitochondrial matrix and exports alpha-isopropylmalate from it. Enhanced during increased glucose metabolism.
+
 ### Downregulated genes
+
+In top-50 genes there are only two downregulated genes.
+
+* [YLR327C](https://www.yeastgenome.org/locus/S000004319): -5 log2-change (~ -97%), this gene encodes protein of unknown function associated with ribosomes.
+
+* [YKR097W](https://www.yeastgenome.org/locus/S000001805): -4.7 log2-change (~ -96%), carbohydrate metabolic process (`GO:0005975`).
+Phosphoenolpyruvate carboxykinase, located in cytosol. Catalyzes early reaction in carbohydrate biosynthesis. Presence of glucose inhibts transription and increases mRNA degradation. As this gene is involved in gluconeogenesis, process of glucose production, it is strongly suppresed while cells have unlimited glucose intake and active glucose utilisation is activated.
